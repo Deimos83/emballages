@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1220">
+
+  <title>Emballages (Inventaire &amp; Retours)</title>
+  <style>
+    :root{
+      --bg:#0f1220; --line:#2b2f4f; --text:#eef; --muted:#b9c0ff;
+      --danger:#3a2130; --dangerLine:#5a2a43;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      margin:10px;
+      background:var(--bg);
+      color:var(--text);
+    }
+    h1{font-size:24px;margin:0 0 2px}
+
+    .mode-toggle{display:flex;gap:4px;margin:4px 0 8px}
+    .mode-btn{
+      flex:1;border-radius:999px;border:1px solid var(--line);
+      background:#181b3a;color:var(--text);
+      padding:5px 6px;font-size:13px;cursor:pointer;
+    }
+    .mode-btn.active{
+      background:#f5c24b;color:#111;border-color:#f5c24b;font-weight:600;
+    }
+
+    .top{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+    input, button, select{
+      border-radius:10px;border:1px solid var(--line);
+      background:#22264a;color:var(--text);
+      padding:7px 8px;font:inherit;font-size:13px;
+    }
+    input[type="text"]{flex:1;min-width:130px}
+    select{min-width:95px}
+    button{cursor:pointer; user-select:none}
+    button:active{transform:scale(.99)}
+    .danger{background:var(--danger);border-color:var(--dangerLine)}
+    .chip{padding:6px 8px;border-radius:999px;font-size:12px}
+    .sub{opacity:.9;font-size:11px;margin:4px 0 0;color:var(--muted)}
+    .empty{opacity:.75;font-size:13px;margin-top:10px}
+
+    .row{border-radius:12px;padding:10px 8px;margin:6px 0}
+    .rowline{
+      display:flex;align-items:center;gap:2px;flex-wrap:nowrap;
+      white-space:nowrap;min-width:0;
+    }
+
+    .ref{
+      flex:1 1 120px;
+      min-width:110px;
+      max-width:none;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      gap:1px;
+    }
+    .ref .main{
+      font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;
+    }
+    .ref .meta{
+      font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;
+    }
+
+    .count{
+      flex:0 0 28px;width:28px;text-align:right;
+      font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px;
+    }
+
+    .tiny{flex:0 0 auto;padding:9px 9px;font-size:13px}
+    .x{flex:0 0 auto;width:46px;padding:9px 9px;font-size:13px}
+    .rowline .tiny + .tiny{margin-left:4px}
+
+    /* ===== Modals ===== */
+    .modal{
+      position:fixed; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      z-index:9998;
+    }
+    .modal-backdrop{
+      position:absolute; inset:0;
+      background:rgba(0,0,0,.6);
+    }
+    .modal-sheet{
+      position:relative;
+      max-width:480px;
+      width:90%;
+      max-height:85vh;
+      background:#11152a;
+      border-radius:12px;
+      border:1px solid var(--line);
+      box-shadow:0 12px 32px rgba(0,0,0,.6);
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+    }
+    .modal-header{
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:6px;
+      flex:0 0 auto;
+    }
+    .modal-title{font-size:14px;font-weight:600}
+
+    /* ===== Popup retours ===== */
+    #retModalBody{
+      margin:0;
+      font-family:inherit;
+      font-size:12px;
+      color:var(--text);
+      overflow-y:auto;
+      flex:1 1 auto;
+      min-height:0;
+    }
+    .ret-meta{font-size:12px;margin-bottom:6px;opacity:0.9}
+    .ret-table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:4px;
+      table-layout:fixed;
+    }
+    .ret-table th, .ret-table td{
+      padding:8px 8px;
+      border-bottom:1px solid var(--line);
+      font-size:12px;
+      vertical-align:middle;
+    }
+    .ret-table th{
+      text-align:left;
+      color:var(--muted);
+      font-weight:600;
+    }
+    .ret-table tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+    .ret-table .col-qte{ text-align:right; width:60px; }
+    .ret-table th:nth-child(2),
+    .ret-table td:nth-child(2){
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .ret-table tr.done td{
+      text-decoration: line-through;
+      opacity:0.5;
+    }
+    .ret-note{margin-top:8px;font-size:11px;opacity:0.7}
+
+    /* ===== Popup details ===== */
+    #itemModalBody{
+      overflow-y:auto;
+      flex:1 1 auto;
+      min-height:0;
+      font-size:12px;
+    }
+    .imgwrap{
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:8px;
+      background:#0c0f22;
+      margin-bottom:8px;
+    }
+    .imgwrap img{
+      width:100%;
+      max-height:50vh;
+      object-fit:contain;
+      border-radius:10px;
+      display:none;
+    }
+    .itemtext{
+      background:rgba(255,255,255,0.03);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px;
+      line-height:1.35;
+      font-size:12px;
+      color:var(--text);
+      white-space:pre-wrap;
+      display:none;
+    }
+
+    @media (max-width: 480px) {
+      body{margin:8px}
+      h1{font-size:20px}
+
+      .mode-btn{padding:4px 4px;font-size:11px}
+      .top{gap:3px;margin-bottom:4px}
+      .top input,.top select,.top button{font-size:11px;padding:5px 6px}
+      input[type="text"]{min-width:120px}
+      select{min-width:90px}
+      .chip{padding:4px 6px;font-size:11px}
+
+      .row{padding:8px 6px;margin:4px 0}
+      .ref{flex:1 1 130px;min-width:110px;max-width:none}
+      .count{width:30px;font-size:13px}
+      .tiny{padding:8px 7px;font-size:12px}
+      .x{width:44px;padding:8px 7px;font-size:12px}
+
+      .modal-sheet{max-height:92vh}
+      #retModalBody{font-size:11px}
+      .ret-table th, .ret-table td{font-size:11px;padding:9px 6px}
+      .imgwrap img{max-height:55vh}
+      .itemtext{font-size:11px}
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Emballages</h1>
+  <div id="modeLabel" class="sub"></div>
+  <div class="mode-toggle">
+    <button id="modeRet" class="mode-btn active">Retours</button>
+    <button id="modeInv" class="mode-btn">Inventaire</button>
+  </div>
+
+  <div class="top">
+    <input id="search" type="text" placeholder="Rechercher..." />
+
+    <select id="filterCat" title="Filtrer par categorie">
+      <option value="">Toutes</option>
+      <option value="EPAL">EPAL</option>
+      <option value="ULOG">ULOG</option>
+      <option value="CHEP">CHEP</option>
+      <option value="LPR">LPR</option>
+      <option value="LOGIPAL">LOGIPAL</option>
+      <option value="IFCO">IFCO</option>
+      <option value="MAREE">MAREE</option>
+      <option value="PGS">PGS</option>
+      <option value="BALLE">BALLE</option>
+      <option value="Autre">Autre</option>
+    </select>
+
+    <select id="sort">
+      <option value="cat">Categorie</option>
+      <option value="az">A - Z</option>
+      <option value="za">Z - A</option>
+      <option value="qty_desc">Qte desc</option>
+      <option value="qty_asc">Qte asc</option>
+    </select>
+
+    <button id="undoBtn" class="chip">Undo</button>
+    <button id="detailsToggle" class="chip">Details : OFF</button>
+  </div>
+
+  <div class="top">
+    <button id="resetAll" class="danger chip">Remise a zero</button>
+    <button id="exportCsv" class="chip">Exporter</button>
+    <button id="restoreDefaults" class="chip">Restaurer la liste</button>
+  </div>
+
+  <div id="lastInfo" class="sub"></div>
+  <div id="list"></div>
+
+  <!-- Popup recap retours -->
+  <div id="retModal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span class="modal-title">Recap retours emballages</span>
+        <button id="retModalClose" class="chip">X</button>
+      </div>
+      <div id="retModalBody"></div>
+    </div>
+  </div>
+
+  <!-- Popup details -->
+  <div id="itemModal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span id="itemModalTitle" class="modal-title">Details</span>
+        <button id="itemModalClose" class="chip">X</button>
+      </div>
+
+      <div id="itemModalBody">
+        <div class="imgwrap">
+          <img id="itemImg" alt="Photo emballage" />
+        </div>
+        <div id="itemText" class="itemtext"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ====== Couleurs + ordre ======
+  const CAT_COLORS = {
+    EPAL:    "#8c6a3a",
+    ULOG:    "#555b65",
+    CHEP:    "#1f4fbf",
+    LPR:     "#c23b3b",
+    LOGIPAL: "#7b1b2a",
+    IFCO:    "#000000",
+    MAREE:   "#2d8fdd",
+    PGS:     "#123a7c",
+    BALLE:   "#5e2b86",
+    Autre:   "#444444"
+  };
+
+  const CAT_ORDER = {
+    EPAL:    1,
+    ULOG:    2,
+    LOGIPAL: 3,
+    LPR:     4,
+    CHEP:    5,
+    IFCO:    6,
+    MAREE:   7,
+    PGS:     8,
+    Autre:   9,
+    BALLE:   10
+  };
+
+  const ITEM_TEXTS = {
+    "EPAL||Europe 80x120": "Retour : pile de 15 palettes",
+    "ULOG||Plastique Ulog": "Retour : pile de 15 palettes",
+    "ULOG||Rehausse grise": "Retour : 13 rehausses sur palette ulog",
+    "CHEP||CHEP 100x120": "Palette CHEP 100x120.\nVerifier marquage / etiquette.",
+    "IFCO||IFCO grande 60x40": "IFCO grande 60x40.\nVerifier couvercle si present."
+  };
+
+  const ITEM_IMAGES = {
+    // Exemple :
+    "EPAL||Europe 80x120": "./img/europe.jpg",
+    "ULOG||Plastique Ulog": "./img/plastique_ulog.jpg"
+  };
+
+  // ====== Liste references ======
+  const DEFAULT_ITEMS = [
+    { cat:"EPAL",   name:"Europe 80x120" },
+    { cat:"ULOG",   name:"Plastique Ulog" },
+    { cat:"ULOG",   name:"Rehausse grise" },
+    { cat:"LOGIPAL",name:"Logipal 100x120" },
+    { cat:"LOGIPAL",name:"Logipal 80x120" },
+    { cat:"LOGIPAL",name:"Logipal 100x60" },
+    { cat:"LOGIPAL",name:"Logipal 80x60" },
+    { cat:"LPR",    name:"LPR 100x120" },
+    { cat:"LPR",    name:"LPR 80x120" },
+    { cat:"LPR",    name:"LPR 100x60" },
+    { cat:"LPR",    name:"LPR 80x60" },
+    { cat:"CHEP",   name:"CHEP 100x120" },
+    { cat:"CHEP",   name:"CHEP 80x120" },
+    { cat:"CHEP",   name:"CHEP 100x60" },
+    { cat:"CHEP",   name:"CHEP 80x60" },
+    { cat:"CHEP",   name:"CHEP 1/4 40x60" },
+    { cat:"IFCO",   name:"IFCO petite 40x30" },
+    { cat:"IFCO",   name:"IFCO grande 60x40" },
+    { cat:"IFCO",   name:"IFCO caisse rouge 60x40" },
+    { cat:"IFCO",   name:"IFCO Magnum box" },
+    { cat:"MAREE",  name:"Maree 80x120" },
+    { cat:"MAREE",  name:"1/2 Maree 80x60" },
+    { cat:"PGS",    name:"PGS 80x120" },
+    { cat:"PGS",    name:"PGS 100x120" },
+    { cat:"Autre",  name:"Rehausse UBOX noire" },
+    { cat:"Autre",  name:"1/2 Duesseldorf" },
+    { cat:"Autre",  name:"1/2 palette perdue 80x60" },
+    { cat:"Autre",  name:"Palette perdue 100x120" },
+    { cat:"Autre",  name:"Palette perdue 80x120" },
+    { cat:"Autre",  name:"Europe cassee 80x120" },
+    { cat:"Autre",  name:"Rolls" },
+    { cat:"BALLE",  name:"Balle carton" },
+    { cat:"BALLE",  name:"Balle plastique souple" },
+    { cat:"BALLE",  name:"Balle plastique dur" }
+  ];
+const raw = ITEM_IMAGES["EPAL||Europe 80x120"] || "";
+console.log("prefix?", raw.slice(0, 30));
+console.log("startsWith /9j ?", raw.includes("base64,") ? raw.split("base64,")[1].slice(0,4) : raw.slice(0,4));
+function normalizeDataUri(s){
+  if (!s) return "";
+  s = String(s).trim();
+
+  // Déjà une data URI : on enlève juste les espaces/retours
+  if (s.startsWith("data:image/")) {
+    return s.replace(/\s+/g, "");
+  }
+
+  // Base64 brute -> détection rapide
+  const b64 = s.replace(/\s+/g, "");
+
+  let mime = "image/jpeg";
+  if (b64.startsWith("iVBORw0K")) mime = "image/png";
+  else if (b64.startsWith("UklGR")) mime = "image/webp";
+  else if (b64.startsWith("/9j/")) mime = "image/jpeg";
+
+  return `data:${mime};base64,${b64}`;
+}
+  // ====== Mode + stockage ======
+  let mode = "ret";
+  let detailsEnabled = JSON.parse(localStorage.getItem("emb:detailsEnabled") || "false");
+
+  function getStorageKey(){ return "emb:v1:" + mode; }
+  function getRetStrikeKey(dateStr){ return "emb:ret:strike:" + dateStr; }
+
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(getStorageKey())) || { items: [], history: [], seeded:false }; }
+    catch { return { items: [], history: [], seeded:false }; }
+  }
+  function saveState(){ localStorage.setItem(getStorageKey(), JSON.stringify({ items, history, seeded })); }
+
+  let { items, history, seeded } = loadState();
+
+  function pushHistory(action){
+    history.push(action);
+    if (history.length > 300) history.shift();
+  }
+
+  function seedDefaults(force){
+    if (!force && (seeded || items.length > 0)) return;
+    items = [];
+    for (const d of DEFAULT_ITEMS) items.push({ id: crypto.randomUUID(), cat:d.cat, name:d.name, count:0 });
+    seeded = true;
+    history = [];
+    saveState();
+    render();
+    toast("Liste restauree.");
+  }
+
+  function updateCount(id, delta){
+    const it = items.find(x => x.id === id);
+    if (!it) return;
+    const before = it.count;
+    const after = Math.max(0, before + delta);
+    if (after === before) return;
+    it.count = after;
+    pushHistory({ type:"count", id, before, after, label: it.cat + " - " + it.name });
+    saveState();
+    render();
+  }
+
+  function resetAll(){
+    const ok = confirm(
+      "Remettre toutes les quantites a zero pour le mode actuel ?\n\n" +
+      "- Mode : " + (mode === "inv" ? "Inventaire" : "Retours") + "\n" +
+      "Pense a faire un Export avant si tu veux garder une trace."
+    );
+    if (!ok) return;
+    const snapshot = items.map(i => ({ id:i.id, before:i.count }));
+    pushHistory({ type:"resetAll", snapshot });
+    items.forEach(i => i.count = 0);
+    saveState();
+    render();
+  }
+
+  function undo(){
+    const last = history.pop();
+    if (!last) { toast("Rien a annuler."); renderLastInfo(); return; }
+
+    if (last.type === "resetAll") {
+      for (const s of last.snapshot) {
+        const it = items.find(x => x.id === s.id);
+        if (it) it.count = s.before;
+      }
+      saveState(); render(); toast("Remise a zero annulee.");
+      return;
+    }
+
+    if (last.type === "count") {
+      const it = items.find(x => x.id === last.id);
+      if (it) it.count = last.before;
+      saveState(); render(); toast("Annule.");
+      return;
+    }
+  }
+
+  function filteredSorted(){
+    const q = document.getElementById("search").value.trim().toLowerCase();
+    const catFilter = document.getElementById("filterCat").value;
+    const modeSort = document.getElementById("sort").value;
+
+    let arr = items.slice();
+    if (catFilter) arr = arr.filter(i => i.cat === catFilter);
+    if (q) arr = arr.filter(i => (i.cat + " " + i.name).toLowerCase().includes(q));
+
+    arr.sort((a,b) => {
+      const A = a.cat + " " + a.name;
+      const B = b.cat + " " + b.name;
+
+      if (modeSort === "cat") {
+        const orderA = CAT_ORDER[a.cat] || 999;
+        const orderB = CAT_ORDER[b.cat] || 999;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name, "fr", { sensitivity:"base" });
+      }
+      if (modeSort === "az") return A.localeCompare(B, "fr", { sensitivity:"base" });
+      if (modeSort === "za") return B.localeCompare(A, "fr", { sensitivity:"base" });
+      if (modeSort === "qty_desc") return (b.count - a.count) || A.localeCompare(B, "fr", { sensitivity:"base" });
+      if (modeSort === "qty_asc") return (a.count - b.count) || A.localeCompare(B, "fr", { sensitivity:"base" });
+      return 0;
+    });
+
+    return arr;
+  }
+
+  function renderLastInfo(){
+    const el = document.getElementById("lastInfo");
+    const last = history[history.length - 1];
+    if (!last) { el.textContent = "Undo : aucune action en attente."; return; }
+    if (last.type === "resetAll") { el.textContent = "Undo pret : remise a zero (tout)"; return; }
+    if (last.type === "count") { el.textContent = "Undo pret : " + last.label + " (" + last.before + " -> " + last.after + ")"; return; }
+    el.textContent = "Undo pret.";
+  }
+
+  function mkBtn(label, onClick){
+    const b = document.createElement("button");
+    b.className = "tiny";
+    b.textContent = label;
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
+  // ===== Retours popup: rayures persistantes =====
+  function bindRetRowToggleOnce(){
+    const body = document.getElementById("retModalBody");
+    if (!body || body.dataset.bound === "1") return;
+
+    body.addEventListener("click", (e) => {
+      const tr = e.target.closest("tr");
+      if (!tr) return;
+      const table = tr.closest(".ret-table");
+      if (!table) return;
+
+      tr.classList.toggle("done");
+
+      const dateStr = new Date().toLocaleDateString("fr-FR");
+      const strikeKey = getRetStrikeKey(dateStr);
+      const rowid = tr.getAttribute("data-rowid");
+      if (!rowid) return;
+
+      const list = JSON.parse(localStorage.getItem(strikeKey) || "[]");
+      const set = new Set(list);
+      if (tr.classList.contains("done")) set.add(rowid);
+      else set.delete(rowid);
+      localStorage.setItem(strikeKey, JSON.stringify([...set]));
+    });
+
+    body.dataset.bound = "1";
+  }
+
+  // ===== Export =====
+  function exportCSV(){
+    const used = items.filter(i => i.count > 0);
+    if (!used.length) { toast("Rien a exporter (toutes les quantites sont a 0)."); return; }
+
+    const arr = used.slice().sort((a, b) => {
+      const orderA = CAT_ORDER[a.cat] || 999;
+      const orderB = CAT_ORDER[b.cat] || 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name, "fr", { sensitivity:"base" });
+    });
+
+    if (mode === "ret") {
+      const modal = document.getElementById("retModal");
+      const body  = document.getElementById("retModalBody");
+
+      const dateStr = new Date().toLocaleDateString("fr-FR");
+      const strikeKey = getRetStrikeKey(dateStr);
+      const savedDone = new Set(JSON.parse(localStorage.getItem(strikeKey) || "[]"));
+
+      let html = "";
+      html += '<div class="ret-meta">Retours emballages - ' + escapeHtml(dateStr) + "</div>";
+      html += '<table class="ret-table">';
+      html += "<thead><tr><th>Categorie</th><th>Emballage</th><th class='col-qte'>Qte</th></tr></thead>";
+      html += "<tbody>";
+
+      for (const i of arr) {
+        const rowId = (i.cat + "||" + i.name).toLowerCase();
+        const doneClass = savedDone.has(rowId) ? ' class="done"' : "";
+        html += "<tr" + doneClass + ' data-rowid="' + escapeHtml(rowId) + '">' +
+          "<td>" + escapeHtml(i.cat) + "</td>" +
+          "<td>" + escapeHtml(i.name) + "</td>" +
+          "<td class='col-qte'>" + String(i.count) + "</td>" +
+        "</tr>";
+      }
+
+      html += "</tbody></table>";
+      html += '<div class="ret-note">Appuie sur une ligne pour la rayer. Les rayures restent meme si tu fermes la popup.</div>';
+
+      body.innerHTML = html;
+      bindRetRowToggleOnce();
+      modal.style.display = "flex";
+      toast("Recap des retours dans la popup.");
+      return;
+    }
+
+    const lines = [["Mode","Categorie","Emballage","Quantite"], ...arr.map(i => ["Inventaire", i.cat, i.name, String(i.count)])];
+    const csv = lines.map(r => r.map(v => "\"" + String(v).replace(/\"/g,'\"\"') + "\"").join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "inventaire_emballages.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ===== Popup details (image + texte only) =====
+  function detailKey(it){ return it.cat + "||" + it.name; }
+
+function openItemDetails(it){
+  const key = detailKey(it);
+
+  const text = (ITEM_TEXTS[key] || "").trim();
+  const imgSrc = (ITEM_IMAGES[key] || "").trim();
+
+  const title = document.getElementById("itemModalTitle");
+  const imgEl = document.getElementById("itemImg");
+  const txtEl = document.getElementById("itemText");
+
+  title.textContent = it.cat + " - " + it.name;
+
+  // reset
+  imgEl.style.display = "none";
+  imgEl.removeAttribute("src");
+  txtEl.style.display = "none";
+  txtEl.textContent = "";
+
+  let hasAny = false;
+
+  if (text) {
+    txtEl.textContent = text;
+    txtEl.style.display = "block";
+    hasAny = true;
+  }
+
+  if (imgSrc) {
+    imgEl.onload = () => { imgEl.style.display = "block"; };
+    imgEl.onerror = () => { toast("Base64 invalide / image cassée pour : " + key); };
+    imgEl.src = imgSrc.startsWith("data:image/") || imgSrc.startsWith("/9j/") || imgSrc.startsWith("iVBOR")
+  ? normalizeDataUri(imgSrc)
+  : imgSrc;
+    hasAny = true;
+  }
+
+  if (!hasAny) return;
+  document.getElementById("itemModal").style.display = "flex";
+}
+  function closeItemModal(){
+    document.getElementById("itemModal").style.display = "none";
+  }
+
+  // ===== UI =====
+  function renderModeLabel(){
+    const label = document.getElementById("modeLabel");
+    label.textContent = mode === "inv"
+      ? "Mode : Inventaire (utilise occasionnellement)"
+      : "Mode : Retours hebdomadaires d'emballages";
+  }
+
+  function updateModeButtons(){
+    document.getElementById("modeInv").classList.toggle("active", mode === "inv");
+    document.getElementById("modeRet").classList.toggle("active", mode === "ret");
+  }
+
+  function syncDetailsButton(){
+    const b = document.getElementById("detailsToggle");
+    b.textContent = "Details : " + (detailsEnabled ? "ON" : "OFF");
+    b.style.background = detailsEnabled ? "#2a2f5a" : "#22264a";
+  }
+
+  function render(){
+    renderModeLabel();
+    renderLastInfo();
+
+    const root = document.getElementById("list");
+    root.innerHTML = "";
+
+    const arr = filteredSorted();
+    if (!arr.length) {
+      const div = document.createElement("div");
+      div.className = "empty";
+      div.textContent = 'Aucun resultat (liste vide). Appuie sur "Restaurer la liste".';
+      root.appendChild(div);
+      return;
+    }
+
+    let lastCat = null;
+
+    for (const it of arr) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.style.background = CAT_COLORS[it.cat] || "#171a2e";
+
+      if (lastCat !== null && it.cat !== lastCat) row.style.marginTop = "12px";
+      lastCat = it.cat;
+
+      const line = document.createElement("div");
+      line.className = "rowline";
+
+      const ref = document.createElement("div");
+      ref.className = "ref";
+      ref.innerHTML =
+        '<div class="main">' + escapeHtml(it.name) + '</div>' +
+        '<div class="meta">' + escapeHtml(it.cat) + '</div>';
+
+      // clic sur la reference => details si ON
+      ref.style.cursor = detailsEnabled ? "pointer" : "default";
+      ref.addEventListener("click", () => {
+        if (!detailsEnabled) return;
+        openItemDetails(it);
+      });
+
+      const count = document.createElement("div");
+      count.className = "count";
+      count.textContent = it.count;
+
+      const bMinus = mkBtn("-1", () => updateCount(it.id, -1));
+      const b1     = mkBtn("+1", () => updateCount(it.id, +1));
+      const b5     = mkBtn("+5", () => updateCount(it.id, +5));
+      const b10    = mkBtn("+10", () => updateCount(it.id, +10));
+
+      const x = document.createElement("input");
+      x.className = "x";
+      x.type = "number";
+      x.inputMode = "numeric";
+      x.placeholder = "+x";
+
+      const bX = mkBtn("OK", () => {
+        const val = parseInt(x.value, 10);
+        if (!Number.isFinite(val)) return;
+        updateCount(it.id, val);
+        x.value = "";
+      });
+      x.addEventListener("keydown", (e) => { if (e.key === "Enter") bX.click(); });
+
+      line.append(ref, count, bMinus, b1, b5, b10, x, bX);
+      row.appendChild(line);
+      root.appendChild(row);
+    }
+  }
+
+  function switchMode(newMode){
+    if (newMode === mode) return;
+    saveState();
+    mode = newMode;
+    ({ items, history, seeded } = loadState());
+    if (!seeded || !items.length) seedDefaults(false);
+    updateModeButtons();
+    render();
+  }
+
+  // ===== Toast =====
+  let toastTimer = null;
+  function toast(msg){
+    let t = document.getElementById("toast");
+    if (!t) {
+      t = document.createElement("div");
+      t.id = "toast";
+      Object.assign(t.style, {
+        position:"fixed", left:"50%", bottom:"16px", transform:"translateX(-50%)",
+        background:"#11152a", border:"1px solid #2b2f4f", padding:"8px 10px",
+        borderRadius:"12px", color:"#eef", maxWidth:"92vw", zIndex:"9999",
+        boxShadow:"0 8px 24px rgba(0,0,0,.35)", fontSize:"12px"
+      });
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.style.display = "none"; }, 1300);
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;");
+  }
+
+  // ===== Events =====
+  document.getElementById("search").addEventListener("input", render);
+  document.getElementById("filterCat").addEventListener("change", render);
+  document.getElementById("sort").addEventListener("change", render);
+
+  document.getElementById("undoBtn").addEventListener("click", undo);
+  document.getElementById("resetAll").addEventListener("click", resetAll);
+  document.getElementById("exportCsv").addEventListener("click", exportCSV);
+
+  document.getElementById("restoreDefaults").addEventListener("click", () => {
+    const ok = confirm(
+      "ATTENTION :\n\n- La liste va etre reinitialisee\n- Toutes les quantites repassent a 0\n\nContinuer ?"
+    );
+    if (!ok) return;
+    seedDefaults(true);
+  });
+
+  document.getElementById("modeInv").addEventListener("click", () => switchMode("inv"));
+  document.getElementById("modeRet").addEventListener("click", () => switchMode("ret"));
+
+  document.getElementById("detailsToggle").addEventListener("click", () => {
+    detailsEnabled = !detailsEnabled;
+    localStorage.setItem("emb:detailsEnabled", JSON.stringify(detailsEnabled));
+    syncDetailsButton();
+    toast(detailsEnabled ? "Details actives." : "Details desactivees.");
+    render();
+  });
+
+  // fermeture popup retours
+  document.getElementById("retModalClose").addEventListener("click", () => document.getElementById("retModal").style.display = "none");
+  document.querySelector("#retModal .modal-backdrop").addEventListener("click", () => document.getElementById("retModal").style.display = "none");
+
+  // fermeture popup details
+  document.getElementById("itemModalClose").addEventListener("click", () => closeItemModal());
+  document.querySelector("#itemModal .modal-backdrop").addEventListener("click", () => closeItemModal());
+
+  // init
+  if (!seeded || !items.length) seedDefaults(false);
+  updateModeButtons();
+  syncDetailsButton();
+  render();
+
+  if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js");
+}
+
+</script>
+</body>
+</html>
