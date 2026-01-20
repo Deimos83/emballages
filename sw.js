@@ -1,4 +1,4 @@
-const CACHE_NAME = "emballages-v1";
+const CACHE_NAME = "emballages-v2";
 
 const ASSETS = [
   "./",
@@ -31,3 +31,4 @@ self.addEventListener("fetch", (event) => {
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
+
