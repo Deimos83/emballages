@@ -316,8 +316,11 @@
     "EPAL||Europe 80x120": "Retour : pile de 15 palettes",
     "ULOG||Plastique Ulog": "Retour : pile de 15 palettes",
     "ULOG||Rehausse grise": "Retour : 13 rehausses sur palette ulog",
-    "CHEP||CHEP 100x120": "Palette CHEP 100x120.\nVerifier marquage / etiquette.",
-    "IFCO||IFCO grande 60x40": "IFCO grande 60x40.\nVerifier couvercle si present."
+    "CHEP||CHEP 1/4 40x60": "Retour : pas de conditions",
+    "LPR||LPR 80x60": "Retour : pas de conditions",
+    "IFCO||IFCO grande 60x40": "Retour : 148 caisses sur palette chep 80x120",
+    "IFCO||IFCO grande 40x30": "Retour : 148 ou 296 caisses sur palette chep 80x120",
+    "Autre||Rehausse UBOX noire": "Retour : 15 rehausses sur palette europe",
   };
 
   const ITEM_IMAGES = {
@@ -325,7 +328,7 @@
     "EPAL||Europe 80x120": "./img/europe.jpg",
     "ULOG||Plastique Ulog": "./img/plastique_ulog.jpg",
     "IFCO||IFCO grande 60x40": "./img/caisse_ifco_noire_(grande).jpg",
-    "IFCO||IFCO grande 40x30": "./img/caisse_ifco_noire_(petite).jpg",
+    "IFCO||IFCO petite 40x30": "./img/caisse_ifco_noire_(petite).jpg",
     "Autre||Rehausse UBOX noire": "./img/rehausse_ubox_noire.jpg",
     "CHEP||CHEP 1/4 40x60": "./img/quart_de_chep.jpg",
     "LPR||LPR 80x60": "./img/lpr_80x60.jpg",
@@ -371,25 +374,7 @@
 const raw = ITEM_IMAGES["EPAL||Europe 80x120"] || "";
 console.log("prefix?", raw.slice(0, 30));
 console.log("startsWith /9j ?", raw.includes("base64,") ? raw.split("base64,")[1].slice(0,4) : raw.slice(0,4));
-function normalizeDataUri(s){
-  if (!s) return "";
-  s = String(s).trim();
 
-  // Déjà une data URI : on enlève juste les espaces/retours
-  if (s.startsWith("data:image/")) {
-    return s.replace(/\s+/g, "");
-  }
-
-  // Base64 brute -> détection rapide
-  const b64 = s.replace(/\s+/g, "");
-
-  let mime = "image/jpeg";
-  if (b64.startsWith("iVBORw0K")) mime = "image/png";
-  else if (b64.startsWith("UklGR")) mime = "image/webp";
-  else if (b64.startsWith("/9j/")) mime = "image/jpeg";
-
-  return `data:${mime};base64,${b64}`;
-}
   // ====== Mode + stockage ======
   let mode = "ret";
   let detailsEnabled = JSON.parse(localStorage.getItem("emb:detailsEnabled") || "false");
@@ -819,3 +804,4 @@ function openItemDetails(it){
 </body>
 
 </html>
+
